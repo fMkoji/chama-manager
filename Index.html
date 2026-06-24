@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chama Manager • v9.6</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <style>
+    :root {
+      --bg: #f7f6f2; --surface: #fff; --surface2: #f0efe9; --border: #e2e1db;
+      --text: #1a1a18; --text2: #6b6b65; --text3: #9b9b93;
+      --green: #1a7a45; --red: #b91c1c; --amber: #b45309; --blue: #1e6f9f;
+      --radius: 12px;
+    }
+    [data-theme="dark"] {
+      --bg: #111110; --surface: #1a1a18; --surface2: #252521; --border: #3a3a35;
+      --text: #f0ede6; --text2: #a8a89f; --text3: #77776f;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+    .header { background: #0a0a0a; color: white; padding: 14px 16px; position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+    .header h1 { font-size: 1.5rem; }
+    .sync-pill { font-size: 11px; font-weight: 600; font-family: 'DM Mono', monospace; padding: 5px 12px; border-radius: 40px; }
+    .theme-toggle { background:none; border:none; color:white; font-size:22px; cursor:pointer; padding:6px; }
+    .cycle-banner { background:var(--surface); border-bottom:1px solid var(--border); padding:14px 16px; }
+    .cycle-track { display:flex; gap:8px; flex-wrap:wrap; }
+    .cycle-step { flex:1; min-width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:700; font-family:'DM Mono',monospace; background:var(--surface2); color:var(--text3); border:1px solid var(--border); cursor:pointer; }
+    .cycle-step.paid { background:var(--green); color:white; border-color:var(--green); }
+    .cycle-step.current { background:var(--amber); color:white; border-color:var(--amber); box-shadow:0 0 0 3px rgba(180,83,9,0.3); }
+    .tabs { background:var(--surface); border-bottom:1px solid var(--border); display:flex; overflow-x:auto; padding:0 16px; }
+    .tab { padding:14px 20px; font-weight:600; cursor:pointer; border:none; background:none; color:var(--text3); border-bottom:3px solid transparent; white-space:nowrap; }
+    .tab.active { color:var(--text); border-bottom-color:var(--text); }
+    .content { padding:20px 16px; max-width:1200px; margin:0 auto; }
+    .section { display:none; }
+    .section.active { display:block; }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:20px; box-shadow:0 1px 3px rgba(0,0,0,0.05); overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; font-size:13.5px; }
+    th, td { padding:10px 8px; border-bottom:1px solid var(--border); text-align:left; }
+    th { color:var(--text2); font-weight:600; cursor:pointer; }
+    .amount-input, .select-input { padding:8px 10px; border:1.5px solid var(--border); border-radius:8px; background:var(--surface); color:var(--text); }
+    .btn { padding:10px 18px; font-size:13.5px; font-weight:600; border:1px solid var(--border); border-radius:30px; cursor:pointer; background:var(--surface); color:var(--text); display:inline-flex; align-items:center; gap:8px; }
+    .btn-green { background:var(--green); color:white; border-color:var(--green); }
+    .btn-blue { background:var(--blue); color:white; border-color:var(--blue); }
+    .btn-danger { background:#fee2e2; color:#b91c1c; border-color:#fecaca; }
+    .status-badge { font-size:11px; font-weight:700; padding:4px 10px; border-radius:40px; font-family:'DM Mono',monospace; }
+    .wa-msg { background:#e8f5e9; border:1px solid #c8e6c9; border-radius:var(--radius); padding:18px; font-family:'DM Mono',monospace; white-space:pre-wrap; font-size:13.2px; color:#1b2d1c; }
+    [data-theme="dark"] .wa-msg { background:#1a2f1c; border-color:#2e5a32; color:#cfe9cf; }
+    .modal { position:fixed; inset:0; background:rgba(0,0,0,0.65); display:none; align-items:center; justify-content:center; z-index:1000; }
+    .modal-content { background:var(--surface); border-radius:20px; padding:24px; width:90%; max-width:480px; }
+    .flex-between { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; }
+    .text-green { color:var(--green); } .text-red { color:var(--red); } .text-amber { color:var(--amber); }
+    .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--surface); border:1px solid var(--border); padding:12px 20px; border-radius:30px; box-shadow:0 4px 12px rgba(0,0,0,0.1); z-index:2000; font-size:13px; display:none; }
+    .search-input { width:100%; max-width:280px; padding:8px 12px; border:1.5px solid var(--border); border-radius:8px; background:var(--surface); color:var(--text); margin-bottom:12px; }
+    .sync-ok { background:#e8f5e9; color:#1a7a45; }
+    .sync-err { background:#fee2e2; color:#b91c1c; }
+    .sync-loading { background:#fff3e0; color:#b45309; }
+    /* Progress bar in recent weeks */
+    .progress-bar-wrap { background:var(--surface2); border-radius:4px; height:6px; margin-top:4px; overflow:hidden; }
+    .progress-bar-fill { height:100%; border-radius:4px; transition:width .3s; }
+    /* Dashboard cards */
+    .dash-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:20px; }
+    .dash-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; text-align:center; }
+    .dash-card .dash-val { font-size:1.6rem; font-weight:700; font-family:'DM Mono',monospace; }
+    .dash-card .dash-lbl { font-size:11px; color:var(--text2); margin-top:4px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; }
+    /* Mobile FAB for action buttons */
+    .record-actions { display:flex; gap:8px; flex-wrap:wrap; }
+    @media(max-width:640px){
+      .record-actions .btn-label { display:none; }
+      .tabs { padding:0 8px; }
+      .tab { padding:12px 10px; font-size:12px; }
+      .header h1 { font-size:1.2rem; }
+    }
+    /* Payout order drag */
+    .order-list { list-style:none; }
+    .order-item { display:flex; align-items:center; gap:10px; padding:10px 12px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; margin-bottom:6px; cursor:grab; user-select:none; }
+    .order-item .drag-handle { color:var(--text3); font-size:18px; }
+    .order-item.drag-over { border-color:var(--blue); background:var(--surface); }
+    /* Confirm modal */
+    .confirm-modal { background:var(--surface); border-radius:20px; padding:24px; width:90%; max-width:380px; text-align:center; }
+    .confirm-modal h3 { margin-bottom:12px; }
+    .confirm-modal p { color:var(--text2); font-size:13px; margin-bottom:20px; }
+    .confirm-modal .actions { display:flex; gap:10px; justify-content:center; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <h1>📋 Chama Manager</h1>
+      <div style="font-size:12.5px; color:#aaa;">8 members • KES 3,100 weekly pool</div>
+    </div>
+    <div style="display:flex; gap:12px; align-items:center;">
+      <button class="theme-toggle" onclick="toggleTheme()">🌓</button>
+      <span class="sync-pill sync-loading" id="sync-status">⟳ Connecting…</span>
+      <button class="btn" style="padding:4px 10px; font-size:11px;" onclick="retryConnection()">Retry</button>
+    </div>
+  </div>
+
+  <!-- Cycle Progress -->
+  <div class="cycle-banner">
+    <div style="font-size:11px; font-weight:700; color:var(--text2); margin-bottom:8px;">⏱️ PAYOUT CYCLE PROGRESS (click to jump)</div>
+    <div class="cycle-track" id="cycle-track"></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" data-tab="dashboard">🏠 Dashboard</button>
+    <button class="tab" data-tab="record">📋 Record</button>
+    <button class="tab" data-tab="recent">📊 Recent 3 Wks</button>
+    <button class="tab" data-tab="arrears">📉 Arrears</button>
+    <button class="tab" data-tab="history">📜 History</button>
+    <button class="tab" data-tab="members">👥 Members</button>
+    <button class="tab" data-tab="whatsapp">📱 WhatsApp</button>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD TAB -->
+    <div id="tab-dashboard" class="section active">
+      <div id="dash-grid" class="dash-grid"></div>
+      <div class="card">
+        <div style="font-weight:600; margin-bottom:12px;">🏆 Payout Cycle Status</div>
+        <table>
+          <thead><tr><th>#</th><th>Recipient</th><th>Week</th><th>Pool Status</th></tr></thead>
+          <tbody id="dash-cycle-body"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div style="font-weight:600; margin-bottom:12px;">⚠️ Members with Arrears</div>
+        <table>
+          <thead><tr><th>Member</th><th>Owed</th><th>Weeks</th></tr></thead>
+          <tbody id="dash-arrears-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- RECORD TAB -->
+    <div id="tab-record" class="section active">
+      <div class="flex-between">
+        <div>
+          <div id="record-week-title" style="font-size:19px; font-weight:700;"></div>
+          <div id="record-payout-info" style="color:var(--text2); font-size:13px; margin-top:4px;"></div>
+        </div>
+        <div class="record-actions">
+          <select id="week-select" class="select-input" onchange="changeWeek(this.value)"></select>
+          <button class="btn btn-green" onclick="markAllPaid()">✔️ <span class="btn-label">Mark All Paid</span></button>
+          <button class="btn btn-blue" onclick="showAddWeekModal()">➕ <span class="btn-label">New Week</span></button>
+          <button class="btn btn-danger" onclick="confirmDeleteWeek()">🗑️ <span class="btn-label">Delete</span></button>
+        </div>
+      </div>
+
+      <input type="text" id="member-search" class="search-input" placeholder="Search members..." oninput="renderRecordTab()">
+
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <div style="font-weight:600;">Payments</div>
+          <div id="total-collected" style="font-weight:600; color:var(--green);"></div>
+        </div>
+        <table>
+          <thead><tr><th>Member</th><th>Expected</th><th>Paid</th><th>Status</th><th>Action</th></tr></thead>
+          <tbody id="record-body"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <label style="font-size:13px; font-weight:600; color:var(--text2); display:block; margin-bottom:8px;">🎯 This Week's Payout Recipient</label>
+        <div id="payout-editor"></div>
+      </div>
+
+      <div class="flex-between">
+        <button class="btn btn-green" onclick="saveToFirebase()">💾 Save to Cloud</button>
+        <button class="btn" onclick="exportJSON()">📥 Export Backup</button>
+        <span style="font-size:12px; color:var(--text3);">Auto-save enabled</span>
+      </div>
+    </div>
+
+    <!-- NEW: RECENT 3 WEEKS TAB -->
+    <div id="tab-recent" class="section">
+      <h2 style="margin-bottom:16px;">📊 Recent 3 Weeks Overview</h2>
+      <div class="card">
+        <table id="recent-table">
+          <thead id="recent-header"></thead>
+          <tbody id="recent-body"></tbody>
+        </table>
+      </div>
+      <div style="font-size:12px; color:var(--text3); margin-top:8px;">Shows last 3 weeks • Click member name to view full history</div>
+    </div>
+
+    <!-- ARREARS DASHBOARD -->
+    <div id="tab-arrears" class="section">
+      <h2 style="margin-bottom:16px;">📉 Arrears Dashboard</h2>
+      <div class="card">
+        <table>
+          <thead>
+            <tr>
+              <th onclick="sortArrears('name')">Member</th>
+              <th onclick="sortArrears('total')">Total Arrears (KES)</th>
+              <th onclick="sortArrears('weeks')">Weeks Owed</th>
+            </tr>
+          </thead>
+          <tbody id="arrears-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div id="tab-history" class="section">
+      <h2 style="margin-bottom:16px;">📜 Payment History</h2>
+      <div class="card">
+        <label style="font-size:13px; font-weight:600; color:var(--text2);">Select Member</label>
+        <select id="history-member-select" class="select-input" style="width:100%; margin-top:6px;" onchange="renderHistory()"></select>
+      </div>
+      <div class="card" id="history-stats"></div>
+      <div class="card">
+        <table>
+          <thead><tr><th>Week</th><th>Expected</th><th>Paid</th><th>Difference</th><th>Status</th></tr></thead>
+          <tbody id="history-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- MEMBERS -->
+    <div id="tab-members" class="section">
+      <h2 style="margin-bottom:16px;">👥 Member Management</h2>
+      <div class="card">
+        <h4 style="margin-bottom:12px;">Current Members</h4>
+        <table>
+          <thead><tr><th>Name</th><th>Weekly Rate (KES)</th><th>Actions</th></tr></thead>
+          <tbody id="members-body"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h4 style="margin-bottom:12px;">Add New Member</h4>
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+          <input id="new-member-name" class="select-input" placeholder="Full Name" style="flex:1; min-width:200px;">
+          <input id="new-member-rate" class="select-input" type="number" value="400" style="width:120px;">
+          <button class="btn btn-green" onclick="addNewMember()">+ Add Member</button>
+        </div>
+      </div>
+      <div class="card">
+        <h4 style="margin-bottom:12px;">🔄 Payout Order <span style="font-size:12px; color:var(--text3); font-weight:400;">(drag to reorder)</span></h4>
+        <ul class="order-list" id="payout-order-list"></ul>
+        <div style="margin-top:10px; font-size:12px; color:var(--text3);">The order here determines who receives the pool each week.</div>
+      </div>
+    </div>
+    <div id="tab-whatsapp" class="section">
+      <h2 style="margin-bottom:16px;">📲 WhatsApp Messaging</h2>
+      <div class="card" style="max-width:500px;">
+        <label style="font-size:13px; font-weight:600; color:var(--text2);">M-Pesa Number</label>
+        <input id="mpesa-number" class="amount-input" type="tel" value="0723031044" style="width:100%; margin-top:6px;" oninput="debouncedRenderWA()">
+        <label style="display:flex; align-items:center; gap:10px; margin-top:18px; font-size:13px; cursor:pointer;">
+          <input type="checkbox" id="include-arrears" checked onchange="debouncedRenderWA()">
+          <span>Include historical arrears summary</span>
+        </label>
+      </div>
+
+      <div style="margin:20px 0 8px; font-size:11px; font-weight:700; color:var(--text3);">COLLECTION UPDATE</div>
+      <div class="wa-msg" id="wa-update"></div>
+      <button class="btn" onclick="copyMsg('wa-update')" style="margin-top:10px;">📋 Copy Update</button>
+
+      <div style="margin:28px 0 8px; font-size:11px; font-weight:700; color:var(--text3);">OVERDUE REMINDER</div>
+      <div class="wa-msg" id="wa-reminder"></div>
+      <button class="btn" onclick="copyMsg('wa-reminder')">📋 Copy Reminder</button>
+
+      <div style="margin:28px 0 8px; font-size:11px; font-weight:700; color:var(--text3);">📉 PENDING ARREARS SUMMARY (Up to Current Week)</div>
+      <div class="wa-msg" id="wa-arrears"></div>
+      <button class="btn" onclick="copyMsg('wa-arrears')">📋 Copy Arrears Summary</button>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div id="modal" class="modal">
+    <div class="modal-content" id="modal-content"></div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // ==================== FIREBASE ====================
+    const firebaseConfig = {
+      apiKey: "AIzaSyA3MHuodi-egob1K96OPHCsnKyrV2Pgf3A",
+      authDomain: "chama-manager-d4222.firebaseapp.com",
+      databaseURL: "https://chama-manager-d4222-default-rtdb.firebaseio.com",
+      projectId: "chama-manager-d4222",
+      storageBucket: "chama-manager-d4222.firebasestorage.app",
+      messagingSenderId: "872874984301",
+      appId: "1:872874984301:web:5f1ff50e62d31660af9064"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const dbRef = firebase.database().ref('chama_weeks_v8');
+
+    // ==================== STATE ====================
+    let state = {
+      weeks: [],
+      members: [
+        { name: "Peter Ndeti", rate: 400 },
+        { name: "Baba Gathoni", rate: 400 },
+        { name: "Joshua Wambua", rate: 300 },
+        { name: "Joakim Kidiwa", rate: 400 },
+        { name: "Dan Mutiso", rate: 400 },
+        { name: "Gabriel Mwendwa", rate: 400 },
+        { name: "Paul Bett", rate: 400 },
+        { name: "Frank Mchana", rate: 400 }
+      ],
+      payoutOrder: ["Peter Ndeti","Baba Gathoni","Joshua Wambua","Joakim Kidiwa","Dan Mutiso","Gabriel Mwendwa","Paul Bett","Frank Mchana"],
+      currentWeekIdx: 0,
+      currentTab: 'dashboard',
+      arrearsSort: { key: 'total', direction: 'desc' }
+    };
+
+    let autoSaveTimeout = null;
+
+    // ==================== HELPERS ====================
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.style.display = 'block';
+      setTimeout(() => toast.style.display = 'none', 2200);
+    }
+
+    function updateSyncStatus(text, className) {
+      const el = document.getElementById('sync-status');
+      el.textContent = text;
+      el.className = `sync-pill ${className}`;
+    }
+
+    function getExpectedAmount(memberName, weekIdx) {
+      const week = state.weeks[weekIdx];
+      if (!week) return memberName === "Joshua Wambua" ? 300 : 400;
+      if (week.paidTo === "Joshua Wambua" || memberName === "Joshua Wambua") return 300;
+      const member = state.members.find(m => m.name === memberName);
+      return member ? member.rate : 400;
+    }
+
+    function getPoolTargetForWeek(weekIdx) {
+      const week = state.weeks[weekIdx];
+      return week && week.paidTo === "Joshua Wambua" ? 2400 : 3100;
+    }
+
+    function computeArrears(upToWeekIdx = null) {
+      const maxIdx = upToWeekIdx !== null ? upToWeekIdx : state.weeks.length - 1;
+      const arrears = {};
+      state.members.forEach(m => arrears[m.name] = { total: 0, weeksOwed: 0 });
+      for (let idx = 0; idx <= maxIdx; idx++) {
+        const week = state.weeks[idx];
+        if (!week) continue;
+        state.members.forEach(m => {
+          const expected = getExpectedAmount(m.name, idx);
+          const paid = week.payments?.[m.name] || 0;
+          const diff = expected - paid;
+          if (diff > 0) {
+            arrears[m.name].total += diff;
+            arrears[m.name].weeksOwed++;
+          }
+        });
+      }
+      return arrears;
+    }
+
+    function debounceSave() {
+      clearTimeout(autoSaveTimeout);
+      autoSaveTimeout = setTimeout(saveToFirebaseSilent, 700);
+    }
+
+    // ==================== RENDER FUNCTIONS ====================
+    function renderAll() {
+      renderCycleTrack();
+      renderCurrentTab();
+    }
+
+    function renderCurrentTab() {
+      const tab = state.currentTab;
+      if (tab === 'dashboard') renderDashboard();
+      else if (tab === 'record') renderRecordTab();
+      else if (tab === 'recent') renderRecentWeeks();
+      else if (tab === 'arrears') renderArrearsTab();
+      else if (tab === 'history') renderHistoryTab();
+      else if (tab === 'members') renderMembersTab();
+      else if (tab === 'whatsapp') renderWhatsApp();
+    }
+
+    function renderDashboard() {
+      if (!state.weeks.length) return;
+      const arrears = computeArrears(state.currentWeekIdx);   // ← only up to current week
+      const currentWeekDate = state.weeks[state.currentWeekIdx]?.date || '';
+      const totalArrears = Object.values(arrears).reduce((s,a)=>s+a.total,0);
+      const lastWeek = state.weeks[state.currentWeekIdx];
+      const lastCollected = Object.values(lastWeek.payments).reduce((a,b)=>a+b,0);
+      const lastTarget = getPoolTargetForWeek(state.currentWeekIdx);
+      const totalPaidOut = state.payoutOrder.filter((_,i)=>state.weeks[i]).length;
+      const cycleProgress = Math.round((totalPaidOut / state.payoutOrder.length) * 100);
+      const membersInArrears = Object.values(arrears).filter(a=>a.total>0).length;
+
+      document.getElementById('dash-grid').innerHTML = `
+        <div class="dash-card">
+          <div class="dash-val text-green">KES ${lastCollected.toLocaleString()}</div>
+          <div class="dash-lbl">Last Week Collected</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px;">of KES ${lastTarget.toLocaleString()} target</div>
+          <div class="progress-bar-wrap" style="margin-top:8px;">
+            <div class="progress-bar-fill" style="width:${Math.min(100,Math.round(lastCollected/lastTarget*100))}%;background:var(--green);"></div>
+          </div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-val" style="color:var(--blue);">${cycleProgress}%</div>
+          <div class="dash-lbl">Cycle Complete</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px;">${totalPaidOut} of ${state.payoutOrder.length} payouts done</div>
+          <div class="progress-bar-wrap" style="margin-top:8px;">
+            <div class="progress-bar-fill" style="width:${cycleProgress}%;background:var(--blue);"></div>
+          </div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-val ${totalArrears>0?'text-red':'text-green'}">KES ${totalArrears.toLocaleString()}</div>
+          <div class="dash-lbl">Total Arrears</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px;">${membersInArrears} member${membersInArrears!==1?'s':''} behind</div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-val">${state.weeks.length}</div>
+          <div class="dash-lbl">Weeks Recorded</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px;">Next: ${lastWeek.paidTo ? '→ cycle continues' : '—'}</div>
+        </div>
+      `;
+
+      // Cycle status table
+      const cycleBody = document.getElementById('dash-cycle-body');
+      cycleBody.innerHTML = state.payoutOrder.map((name, i) => {
+        const week = state.weeks[i];
+        let statusHtml = '<span style="color:var(--text3);font-size:12px;">Upcoming</span>';
+        if (week) {
+          const collected = Object.values(week.payments).reduce((a,b)=>a+b,0);
+          const target = getPoolTargetForWeek(i);
+          const pct = Math.min(100, Math.round(collected/target*100));
+          const color = pct>=100?'var(--green)':pct>0?'var(--amber)':'var(--red)';
+          statusHtml = `<div style="font-size:12px;color:${color};font-weight:600;">KES ${collected} / ${target}</div>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${pct}%;background:${color};"></div></div>`;
+        }
+        const isCurrent = i === state.currentWeekIdx;
+        return `<tr style="${isCurrent?'background:var(--surface2);':''}">
+          <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);">${i+1}</td>
+          <td style="font-weight:600;">${name}${isCurrent?' <span style="font-size:10px;background:var(--amber);color:white;padding:2px 6px;border-radius:20px;margin-left:4px;">NOW</span>':''}</td>
+          <td style="font-size:12px;color:var(--text2);">${week?week.date:'—'}</td>
+          <td style="min-width:120px;">${statusHtml}</td>
+        </tr>`;
+      }).join('');
+
+      // Arrears table — scoped to current week
+      const dashArrears = document.getElementById('dash-arrears-body');
+      document.querySelector('#tab-dashboard .card:last-child div').innerHTML =
+        `⚠️ Arrears up to <strong>${currentWeekDate}</strong>`;
+      const withArrears = Object.entries(arrears).filter(([,a])=>a.total>0).sort((a,b)=>b[1].total-a[1].total);
+      if (withArrears.length === 0) {
+        dashArrears.innerHTML = `<tr><td colspan="3" style="color:var(--green);text-align:center;padding:16px;">🎉 No arrears — everyone is up to date!</td></tr>`;
+      } else {
+        dashArrears.innerHTML = withArrears.map(([name,data])=>`
+          <tr>
+            <td style="font-weight:500;cursor:pointer;" onclick="showMemberHistory('${name}')">${name}</td>
+            <td class="text-red" style="font-weight:600;">KES ${data.total}</td>
+            <td>${data.weeksOwed} wk${data.weeksOwed!==1?'s':''}</td>
+          </tr>`).join('');
+      }
+    }
+
+    function renderRecordTab() {
+      const week = state.weeks[state.currentWeekIdx];
+      if (!week) return;
+
+      document.getElementById('record-week-title').textContent = `Week of ${week.date}`;
+      document.getElementById('record-payout-info').innerHTML = `Payout: <strong>${week.paidTo}</strong> • Target: KES ${getPoolTargetForWeek(state.currentWeekIdx)}`;
+
+      const select = document.getElementById('week-select');
+      select.innerHTML = state.weeks.map((w, i) => `<option value="${i}" ${i === state.currentWeekIdx ? 'selected' : ''}>${w.date}</option>`).join('');
+
+      const searchTerm = (document.getElementById('member-search').value || '').toLowerCase();
+      const collected = Object.values(week.payments).reduce((a,b)=>a+b,0);
+      document.getElementById('total-collected').innerHTML = `Total Collected: <strong>KES ${collected}</strong>`;
+
+      let rows = '';
+      state.members.filter(m => m.name.toLowerCase().includes(searchTerm)).forEach(member => {
+        const expected = getExpectedAmount(member.name, state.currentWeekIdx);
+        const paid = week.payments[member.name] || 0;
+        const safeKey = member.name.replace(/\s/g, '_');
+
+        // Compute this member's total arrears up to (but not including) current week
+        let arrearsUpToCurrent = 0;
+        for (let idx = 0; idx < state.currentWeekIdx; idx++) {
+          const w = state.weeks[idx];
+          const exp = getExpectedAmount(member.name, idx);
+          const p = w.payments?.[member.name] || 0;
+          if (p < exp) arrearsUpToCurrent += (exp - p);
+        }
+        const totalOwed = arrearsUpToCurrent + Math.max(0, expected - paid);
+
+        let badge = paid >= expected ? `<span class="status-badge" style="background:#e8f5e9;color:var(--green)">✅ Paid</span>` :
+                    paid > 0 ? `<span class="status-badge" style="background:#fff3e0;color:var(--amber)">⚠️ Partial</span>` :
+                    `<span class="status-badge" style="background:#ffe6e5;color:var(--red)">❌ Unpaid</span>`;
+
+        const arrearsTag = arrearsUpToCurrent > 0
+          ? `<div style="font-size:11px;color:var(--red);margin-top:3px;">+KES ${arrearsUpToCurrent} arrears</div>`
+          : '';
+
+        rows += `<tr>
+          <td style="font-weight:500; cursor:pointer;" onclick="showMemberHistory('${member.name}')">${member.name}${arrearsTag}</td>
+          <td>KES ${expected}${arrearsUpToCurrent > 0 ? `<div style="font-size:11px;color:var(--text3);">Total owed: KES ${totalOwed}</div>` : ''}</td>
+          <td>
+            <input type="number" class="amount-input" id="input_${safeKey}" value="${paid}" step="10"
+              onchange="updatePayment('${member.name}', this.value)"
+              style="width:100px;"
+              title="Enter any amount — it will auto-fill arrears first, then this week, then future weeks">
+            <div style="font-size:11px;color:var(--text3);margin-top:3px;" id="dist_${safeKey}"></div>
+          </td>
+          <td>${badge}</td>
+          <td><button class="btn btn-green" style="padding:6px 12px; font-size:12px;" onclick="markFullPaid('${member.name}')">Full</button></td>
+        </tr>`;
+      });
+      document.getElementById('record-body').innerHTML = rows;
+
+      const payoutOptions = state.payoutOrder.map(name => `<option value="${name}" ${name === week.paidTo ? 'selected' : ''}>${name}</option>`).join('');
+      document.getElementById('payout-editor').innerHTML = `<select class="select-input" style="width:100%" onchange="updatePayoutRecipient(this.value)">${payoutOptions}</select>`;
+    }
+
+    function renderRecentWeeks() {
+      const header = document.getElementById('recent-header');
+      const tbody = document.getElementById('recent-body');
+      header.innerHTML = '';
+      tbody.innerHTML = '';
+
+      const numWeeks = Math.min(3, state.weeks.length);
+      const startIdx = Math.max(0, state.weeks.length - 3);
+
+      let headerHTML = '<tr><th>Member</th>';
+      for (let i = 0; i < numWeeks; i++) {
+        const weekIdx = startIdx + i;
+        headerHTML += `<th>${state.weeks[weekIdx].date}</th>`;
+      }
+      headerHTML += '</tr>';
+      header.innerHTML = headerHTML;
+
+      state.members.forEach(member => {
+        let row = `<tr><td style="font-weight:500; cursor:pointer;" onclick="showMemberHistory('${member.name}')">${member.name}</td>`;
+        for (let i = 0; i < numWeeks; i++) {
+          const weekIdx = startIdx + i;
+          const week = state.weeks[weekIdx];
+          const expected = getExpectedAmount(member.name, weekIdx);
+          const paid = week.payments[member.name] || 0;
+          const diff = expected - paid;
+          const pct = expected > 0 ? Math.min(100, Math.round(paid/expected*100)) : 100;
+          const color = diff <= 0 ? 'var(--green)' : (paid > 0 ? 'var(--amber)' : 'var(--red)');
+          let cellClass = diff <= 0 ? 'text-green' : (paid > 0 ? 'text-amber' : 'text-red');
+          row += `<td class="${cellClass}" style="font-weight:500;">KES ${paid}<br><small style="font-size:11px;">/${expected}</small>
+            <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${pct}%;background:${color};"></div></div></td>`;
+        }
+        row += '</tr>';
+        tbody.innerHTML += row;
+      });
+    }
+
+    function renderArrearsTab() {
+      const arrears = computeArrears(state.currentWeekIdx);
+      const currentWeekDate = state.weeks[state.currentWeekIdx]?.date || '';
+      document.querySelector('#tab-arrears h2').textContent = `📉 Arrears up to ${currentWeekDate}`;
+      const tbody = document.getElementById('arrears-body');
+      tbody.innerHTML = '';
+
+      let sorted = Object.entries(arrears);
+      const { key, direction } = state.arrearsSort;
+      if (key === 'name') sorted.sort((a,b) => direction === 'asc' ? a[0].localeCompare(b[0]) : b[0].localeCompare(a[0]));
+      else if (key === 'total') sorted.sort((a,b) => direction === 'asc' ? a[1].total - b[1].total : b[1].total - a[1].total);
+      else sorted.sort((a,b) => direction === 'asc' ? a[1].weeksOwed - b[1].weeksOwed : b[1].weeksOwed - a[1].weeksOwed);
+
+      sorted.forEach(([name, data]) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td style="font-weight:500; cursor:pointer;" onclick="showMemberHistory('${name}')">${name}</td>
+                         <td class="${data.total > 0 ? 'text-red' : 'text-green'}" style="font-weight:600;">KES ${data.total}</td>
+                         <td>${data.weeksOwed} week${data.weeksOwed !== 1 ? 's' : ''}</td>`;
+        tbody.appendChild(row);
+      });
+    }
+
+    function sortArrears(key) {
+      if (state.arrearsSort.key === key) state.arrearsSort.direction = state.arrearsSort.direction === 'asc' ? 'desc' : 'asc';
+      else state.arrearsSort = { key, direction: key === 'name' ? 'asc' : 'desc' };
+      renderArrearsTab();
+    }
+
+    function renderHistoryTab() {
+      const select = document.getElementById('history-member-select');
+      select.innerHTML = state.members.map(m => `<option value="${m.name}">${m.name}</option>`).join('');
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const memberName = document.getElementById('history-member-select').value;
+      if (!memberName) return;
+      const tbody = document.getElementById('history-body');
+      const statsDiv = document.getElementById('history-stats');
+      tbody.innerHTML = '';
+      let totalExpected = 0, totalPaid = 0, weeksOwed = 0;
+      state.weeks.forEach((week, idx) => {
+        const expected = getExpectedAmount(memberName, idx);
+        const paid = week.payments?.[memberName] || 0;
+        const diff = expected - paid;
+        totalExpected += expected; totalPaid += paid;
+        if (diff > 0) weeksOwed++;
+        const status = diff <= 0 ? `<span class="status-badge" style="background:#e8f5e9;color:var(--green)">✅ Clear</span>` : `<span class="status-badge" style="background:#ffe6e5;color:var(--red)">Owed KES ${diff}</span>`;
+        const row = document.createElement('tr');
+        row.innerHTML = `<td>${week.date}</td><td>KES ${expected}</td><td>KES ${paid}</td><td class="${diff > 0 ? 'text-red' : 'text-green'}">KES ${diff}</td><td>${status}</td>`;
+        tbody.appendChild(row);
+      });
+      const currentArrears = totalExpected - totalPaid;
+      statsDiv.innerHTML = `<div style="display:flex; gap:24px; flex-wrap:wrap;">
+        <div><strong>Total Expected:</strong> KES ${totalExpected}</div>
+        <div><strong>Total Paid:</strong> KES ${totalPaid}</div>
+        <div class="${currentArrears > 0 ? 'text-red' : 'text-green'}"><strong>Current Arrears:</strong> KES ${currentArrears}</div>
+        <div><strong>Weeks with Arrears:</strong> ${weeksOwed}</div>
+      </div>`;
+    }
+
+    function showMemberHistory(memberName) {
+      state.currentTab = 'history';
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelector('.tab[data-tab="history"]').classList.add('active');
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      document.getElementById('tab-history').classList.add('active');
+      setTimeout(() => {
+        document.getElementById('history-member-select').value = memberName;
+        renderHistory();
+      }, 50);
+    }
+
+    function renderMembersTab() {
+      const tbody = document.getElementById('members-body');
+      tbody.innerHTML = '';
+      state.members.forEach((member, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td><input type="text" class="select-input" value="${member.name}" style="width:100%;" onchange="updateMemberName(${index}, this.value)"></td>
+                         <td><input type="number" class="select-input" value="${member.rate}" style="width:100px;" onchange="updateMemberRate(${index}, this.value)"></td>
+                         <td><button class="btn btn-danger" style="padding:6px 12px; font-size:12px;" onclick="confirmDeleteMember(${index})">Delete</button></td>`;
+        tbody.appendChild(row);
+      });
+      renderPayoutOrderList();
+    }
+
+    function renderPayoutOrderList() {
+      const list = document.getElementById('payout-order-list');
+      if (!list) return;
+      list.innerHTML = state.payoutOrder.map((name, i) => `
+        <li class="order-item" draggable="true" data-index="${i}">
+          <span class="drag-handle">⠿</span>
+          <span style="font-weight:500; flex:1;">${name}</span>
+          <span style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace;">Round ${i+1}</span>
+        </li>`).join('');
+      initDragOrder();
+    }
+
+    function initDragOrder() {
+      const list = document.getElementById('payout-order-list');
+      let dragging = null;
+      list.querySelectorAll('.order-item').forEach(item => {
+        item.addEventListener('dragstart', () => { dragging = item; setTimeout(()=>item.style.opacity='0.4',0); });
+        item.addEventListener('dragend', () => { item.style.opacity='1'; dragging=null; list.querySelectorAll('.order-item').forEach(i=>i.classList.remove('drag-over')); });
+        item.addEventListener('dragover', e => { e.preventDefault(); if(item!==dragging) item.classList.add('drag-over'); });
+        item.addEventListener('dragleave', () => item.classList.remove('drag-over'));
+        item.addEventListener('drop', e => {
+          e.preventDefault();
+          item.classList.remove('drag-over');
+          if (!dragging || dragging === item) return;
+          const fromIdx = parseInt(dragging.dataset.index);
+          const toIdx = parseInt(item.dataset.index);
+          const moved = state.payoutOrder.splice(fromIdx, 1)[0];
+          state.payoutOrder.splice(toIdx, 0, moved);
+          debounceSave();
+          renderPayoutOrderList();
+          renderCycleTrack();
+          showToast("Payout order updated");
+        });
+      });
+    }
+
+    function renderCycleTrack() {
+      const container = document.getElementById('cycle-track');
+      container.innerHTML = state.payoutOrder.map((name, idx) => {
+        let cls = '';
+        if (state.weeks[idx]) {
+          const total = Object.values(state.weeks[idx].payments || {}).reduce((a,b)=>a+b,0);
+          if (total >= getPoolTargetForWeek(idx)) cls = 'paid';
+        }
+        if (idx === state.currentWeekIdx) cls = 'current';
+        return `<div class="cycle-step ${cls}" onclick="jumpToWeek(${idx})" title="${name}">${name.split(' ').map(n=>n[0]).join('')}</div>`;
+      }).join('');
+    }
+
+    function jumpToWeek(idx) {
+      state.currentWeekIdx = idx;
+      state.currentTab = 'record';
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelector('.tab[data-tab="record"]').classList.add('active');
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      document.getElementById('tab-record').classList.add('active');
+      renderAll();
+    }
+
+    // ==================== ACTIONS ====================
+    function updatePayment(memberName, val) {
+      // The amount entered is the lump-sum payment received right now for this member.
+      // We treat all weeks' existing payments (except current week) as already recorded,
+      // add the new entry on top, then redistribute everything from oldest week forward —
+      // clearing arrears first, then filling current week, then creating new weeks as needed.
+
+      const newPayment = Math.max(0, parseInt(val) || 0);
+
+      // Sum payments already recorded across all weeks EXCEPT current (user is re-entering that)
+      let previousTotal = 0;
+      for (let idx = 0; idx < state.weeks.length; idx++) {
+        if (idx === state.currentWeekIdx) continue;
+        previousTotal += state.weeks[idx].payments?.[memberName] || 0;
+      }
+
+      const grandTotal = previousTotal + newPayment;
+
+      // Reset all weeks to 0 for this member
+      for (let idx = 0; idx < state.weeks.length; idx++) {
+        state.weeks[idx].payments[memberName] = 0;
+      }
+
+      // Redistribute from week 0 forward, creating new weeks if overflow remains
+      let remaining = grandTotal;
+      let idx = 0;
+      const MAX_AUTO_WEEKS = 10; // safety cap — won't create more than 10 new weeks at once
+      let newWeeksCreated = 0;
+
+      while (remaining > 0) {
+        // Auto-create a new week if we've run out of existing ones
+        if (idx >= state.weeks.length) {
+          if (newWeeksCreated >= MAX_AUTO_WEEKS) break;
+          createWeekAfterLast();
+          newWeeksCreated++;
+        }
+
+        const expected = getExpectedAmount(memberName, idx);
+        const toPlace = Math.min(expected, remaining);
+        state.weeks[idx].payments[memberName] = toPlace;
+        remaining -= toPlace;
+        idx++;
+      }
+
+      debounceSave();
+      renderAll();
+
+      if (newWeeksCreated > 0) {
+        showToast(`✅ Payment spread + ${newWeeksCreated} new week${newWeeksCreated > 1 ? 's' : ''} auto-created`);
+      } else {
+        showDistributionSummary(memberName, grandTotal);
+      }
+    }
+
+    function markFullPaid(memberName) {
+      // Compute total ever expected from week 0 to currentWeekIdx
+      let totalExpected = 0;
+      for (let idx = 0; idx <= state.currentWeekIdx; idx++) {
+        totalExpected += getExpectedAmount(memberName, idx);
+      }
+      // Already paid across all weeks
+      let alreadyPaid = 0;
+      for (let idx = 0; idx < state.weeks.length; idx++) {
+        alreadyPaid += state.weeks[idx].payments?.[memberName] || 0;
+      }
+      if (alreadyPaid >= totalExpected) return showToast(`${memberName} is already fully paid up to this week`);
+      // Pass the exact amount needed to clear all arrears + current week
+      // updatePayment will add this to previous payments and redistribute
+      const needed = totalExpected - alreadyPaid;
+      // We call updatePayment treating the "new payment" as the shortfall
+      // but since updatePayment recalculates from previousTotal + newPayment,
+      // we need to pass just the shortfall as newPayment
+      const previousTotal = alreadyPaid;
+      // Reset all and redistribute
+      for (let idx = 0; idx < state.weeks.length; idx++) {
+        state.weeks[idx].payments[memberName] = 0;
+      }
+      let remaining = totalExpected;
+      for (let idx = 0; idx < state.weeks.length; idx++) {
+        if (remaining <= 0) break;
+        const expected = getExpectedAmount(memberName, idx);
+        const toPlace = Math.min(expected, remaining);
+        state.weeks[idx].payments[memberName] = toPlace;
+        remaining -= toPlace;
+      }
+      debounceSave();
+      renderAll();
+      showToast(`${memberName} marked as fully paid (including arrears)`);
+    }
+
+    function showDistributionSummary(memberName, grandTotal) {
+      const affected = [];
+      state.weeks.forEach((week, idx) => {
+        const paid = week.payments[memberName] || 0;
+        const expected = getExpectedAmount(memberName, idx);
+        if (paid > 0) affected.push({ date: week.date, paid, expected });
+      });
+      if (affected.length > 1) {
+        const summary = affected.map(t =>
+          `${t.date}: KES ${t.paid}${t.paid < t.expected ? ' (partial)' : ' ✓'}`
+        ).join(' → ');
+        showToast(`Distributed: ${summary}`);
+      }
+    }
+
+    function markAllPaid() {
+      showModal(`
+        <div class="confirm-modal">
+          <h3>✔️ Mark All Paid?</h3>
+          <p>Mark <strong>all members</strong> as fully paid for the week of <strong>${state.weeks[state.currentWeekIdx].date}</strong>?</p>
+          <div class="actions">
+            <button class="btn" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-green" onclick="doMarkAllPaid()">Yes, Mark All Paid</button>
+          </div>
+        </div>`);
+    }
+
+    function doMarkAllPaid() {
+      closeModal();
+      const week = state.weeks[state.currentWeekIdx];
+      state.members.forEach(m => week.payments[m.name] = getExpectedAmount(m.name, state.currentWeekIdx));
+      debounceSave();
+      renderAll();
+      showToast("All members marked as paid");
+    }
+
+    function updatePayoutRecipient(newRecipient) {
+      state.weeks[state.currentWeekIdx].paidTo = newRecipient;
+      debounceSave();
+      renderAll();
+    }
+
+    function changeWeek(val) {
+      state.currentWeekIdx = parseInt(val);
+      renderAll();
+    }
+
+    function confirmDeleteWeek() {
+      if (state.weeks.length <= 1) return showToast("Cannot delete the last week");
+      const week = state.weeks[state.currentWeekIdx];
+      showModal(`
+        <div class="confirm-modal">
+          <h3>🗑️ Delete Week?</h3>
+          <p>Are you sure you want to delete the week of <strong>${week.date}</strong>? This cannot be undone.</p>
+          <div class="actions">
+            <button class="btn" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-danger" onclick="deleteCurrentWeek()">Yes, Delete</button>
+          </div>
+        </div>`);
+    }
+
+    function deleteCurrentWeek() {
+      closeModal();
+      state.weeks.splice(state.currentWeekIdx, 1);
+      if (state.currentWeekIdx >= state.weeks.length) state.currentWeekIdx = state.weeks.length - 1;
+      debounceSave();
+      renderAll();
+      showToast("Week deleted");
+    }
+
+    function confirmDeleteMember(index) {
+      const member = state.members[index];
+      showModal(`
+        <div class="confirm-modal">
+          <h3>👤 Remove Member?</h3>
+          <p>Are you sure you want to remove <strong>${member.name}</strong>? Their payment history will be preserved but they'll no longer appear in new weeks.</p>
+          <div class="actions">
+            <button class="btn" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-danger" onclick="deleteMember(${index})">Yes, Remove</button>
+          </div>
+        </div>`);
+    }
+
+    function updateMemberName(index, newName) {
+      const oldName = state.members[index].name;
+      state.members[index].name = newName.trim();
+      const orderIndex = state.payoutOrder.indexOf(oldName);
+      if (orderIndex !== -1) state.payoutOrder[orderIndex] = newName.trim();
+      state.weeks.forEach(week => {
+        if (week.payments[oldName] !== undefined) {
+          week.payments[newName.trim()] = week.payments[oldName];
+          delete week.payments[oldName];
+        }
+        if (week.paidTo === oldName) week.paidTo = newName.trim();
+      });
+      debounceSave();
+      renderAll();
+      renderMembersTab();
+    }
+
+    function updateMemberRate(index, newRate) {
+      state.members[index].rate = parseInt(newRate) || 400;
+      debounceSave();
+      renderAll();
+    }
+
+    function addNewMember() {
+      const name = document.getElementById('new-member-name').value.trim();
+      const rate = parseInt(document.getElementById('new-member-rate').value) || 400;
+      if (!name) return showToast("Please enter a name");
+      if (state.members.find(m => m.name.toLowerCase() === name.toLowerCase())) return showToast("Member already exists");
+      state.members.push({ name, rate });
+      state.payoutOrder.push(name);
+      state.weeks.forEach(week => week.payments[name] = 0);
+      document.getElementById('new-member-name').value = '';
+      debounceSave();
+      renderAll();
+      renderMembersTab();
+      showToast("Member added");
+    }
+
+    function deleteMember(index) {
+      closeModal();
+      const member = state.members[index];
+      state.members.splice(index, 1);
+      const orderIndex = state.payoutOrder.indexOf(member.name);
+      if (orderIndex !== -1) state.payoutOrder.splice(orderIndex, 1);
+      debounceSave();
+      renderAll();
+      renderMembersTab();
+      showToast("Member removed");
+    }
+
+    // ==================== MODAL & ADD WEEK ====================
+    function showModal(html) {
+      document.getElementById('modal-content').innerHTML = html;
+      document.getElementById('modal').style.display = 'flex';
+    }
+    function closeModal() {
+      document.getElementById('modal').style.display = 'none';
+    }
+
+    function nextWeekDate(fromDateStr) {
+      // Bumps a "D Mon" string by 7 days, rolling month correctly
+      const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      const daysInMonth = [31,28,31,30,31,30,31,31,30,31,30,31];
+      const match = fromDateStr.match(/(\d+)\s*(\w+)/);
+      if (!match) return fromDateStr;
+      let day = parseInt(match[1]);
+      let mIdx = months.indexOf(match[2]);
+      if (mIdx === -1) return fromDateStr;
+      day += 7;
+      while (day > daysInMonth[mIdx]) {
+        day -= daysInMonth[mIdx];
+        mIdx = (mIdx + 1) % 12;
+      }
+      return `${day} ${months[mIdx]}`;
+    }
+
+    function createWeekAfterLast() {
+      // Creates a new week appended after the last one, returns its index
+      const lastDate = state.weeks.length > 0 ? state.weeks[state.weeks.length - 1].date : "1 Jan";
+      const newDate = nextWeekDate(lastDate);
+      const nextRecipient = state.payoutOrder[state.weeks.length % state.payoutOrder.length] || state.payoutOrder[0];
+      const payments = {};
+      state.members.forEach(m => payments[m.name] = 0);
+      state.weeks.push({ date: newDate, paidTo: nextRecipient, payments });
+      return state.weeks.length - 1;
+    }
+
+    function showAddWeekModal() {
+      const suggestedDate = state.weeks.length > 0 ? nextWeekDate(state.weeks[state.weeks.length - 1].date) : "14 Jun";
+      const nextRecipient = state.payoutOrder[state.weeks.length % state.payoutOrder.length] || state.payoutOrder[0];
+      const html = `
+        <h3 style="margin-bottom:16px;">➕ Add New Week</h3>
+        <label>Week Date</label>
+        <input type="text" id="modal-date" class="select-input" style="width:100%; margin:8px 0 16px;" value="${suggestedDate}">
+        <label>Payout Recipient</label>
+        <select id="modal-recipient" class="select-input" style="width:100%; margin:8px 0 20px;">
+          ${state.payoutOrder.map(n => `<option value="${n}" ${n===nextRecipient?'selected':''}>${n}</option>`).join('')}
+        </select>
+        <div style="display:flex; gap:12px; justify-content:flex-end;">
+          <button class="btn" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-green" onclick="addNewWeek()">Create Week</button>
+        </div>
+      `;
+      showModal(html);
+    }
+
+    function addNewWeek() {
+      const date = document.getElementById('modal-date').value.trim();
+      const recipient = document.getElementById('modal-recipient').value;
+      if (!date) return showToast("Enter a date");
+      const payments = {};
+      state.members.forEach(m => payments[m.name] = 0);
+      state.weeks.push({ date, paidTo: recipient, payments });
+      state.currentWeekIdx = state.weeks.length - 1;
+      closeModal();
+      debounceSave();
+      renderAll();
+      showToast("New week created");
+    }
+
+    // ==================== WHATSAPP ====================
+    function renderWhatsApp() {
+      if (!state.weeks.length) return;
+      const week = state.weeks[state.currentWeekIdx];
+      const mpesaNum = document.getElementById('mpesa-number').value.trim() || "0723031044";
+      const includeArrears = document.getElementById('include-arrears').checked;
+      const target = getPoolTargetForWeek(state.currentWeekIdx);
+      const collected = Object.values(week.payments).reduce((a,b)=>a+b,0);
+      const arrears = computeArrears(state.currentWeekIdx);
+      const totalArrears = Object.values(arrears).reduce((sum, a) => sum + a.total, 0);
+
+      let update = `🏦 *Chama Weekly Update — ${week.date}*\n\n`;
+      state.members.forEach(m => {
+        const exp = getExpectedAmount(m.name, state.currentWeekIdx);
+        const paid = week.payments[m.name] || 0;
+        const icon = paid >= exp ? '✅' : (paid > 0 ? '⚠️' : '❌');
+        update += `${icon} *${m.name}* — KES ${paid}/${exp}\n`;
+      });
+      update += `\n💰 Total: KES ${collected} / ${target}\n🏆 Payout: ${week.paidTo}`;
+      if (includeArrears && totalArrears > 0) update += `\n\n📉 Outstanding Arrears: KES ${totalArrears}`;
+      document.getElementById('wa-update').innerHTML = update;
+
+      let reminder = `🔔 *Payment Reminder — ${week.date}*\n\n`;
+      const unpaid = state.members.filter(m => (week.payments[m.name] || 0) < getExpectedAmount(m.name, state.currentWeekIdx));
+      if (unpaid.length === 0) reminder += `🎉 Everyone has paid this week!\n`;
+      else unpaid.forEach(m => {
+        const exp = getExpectedAmount(m.name, state.currentWeekIdx);
+        const paid = week.payments[m.name] || 0;
+        reminder += `👉 *${m.name}* — KES ${exp - paid}\n`;
+      });
+      reminder += `\n📲 Send to: ${mpesaNum}\n🏆 Recipient: ${week.paidTo}`;
+      document.getElementById('wa-reminder').innerHTML = reminder;
+
+      let arrearsMsg = `📉 *Pending Arrears Summary — ${week.date}*\n\n`;
+      const membersWithArrears = Object.entries(arrears).filter(([name, data]) => data.total > 0).sort((a, b) => b[1].total - a[1].total);
+      if (membersWithArrears.length === 0) {
+        arrearsMsg += `✨ All members are fully cleared up to this week!\n`;
+      } else {
+        membersWithArrears.forEach(([name, data]) => arrearsMsg += `• *${name}*: KES ${data.total}\n`);
+        arrearsMsg += `\nTotal Outstanding: KES ${totalArrears}`;
+      }
+      document.getElementById('wa-arrears').innerHTML = arrearsMsg;
+    }
+
+    const debouncedRenderWA = () => {
+      clearTimeout(window.waTimeout);
+      window.waTimeout = setTimeout(renderWhatsApp, 250);
+    };
+
+    // ==================== CURRENT WEEK DETECTION ====================
+    function parseWeekDate(dateStr) {
+      const months = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+      const match = dateStr.match(/(\d+)\s*(\w+)/);
+      if (!match) return null;
+      const day = parseInt(match[1]);
+      const mIdx = months[match[2]];
+      if (mIdx === undefined) return null;
+      const today = new Date();
+      let year = today.getFullYear();
+      const d = new Date(year, mIdx, day);
+      // If date is more than 6 months in the future, assume it belongs to last year
+      if (d - today > 1000 * 60 * 60 * 24 * 180) d.setFullYear(year - 1);
+      return d;
+    }
+
+    function findCurrentWeekIdx() {
+      if (!state.weeks.length) return 0;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      let bestIdx = 0;
+      let bestDate = null;
+      for (let i = 0; i < state.weeks.length; i++) {
+        const d = parseWeekDate(state.weeks[i].date);
+        if (!d) continue;
+        // Most recent week whose date is on or before today
+        if (d <= today) {
+          if (!bestDate || d > bestDate) {
+            bestDate = d;
+            bestIdx = i;
+          }
+        }
+      }
+      return bestIdx;
+    }
+
+    // ==================== FIREBASE ====================
+    async function loadFromFirebase() {
+      updateSyncStatus('⟳ Connecting…', 'sync-loading');
+      if (!dbRef) {
+        updateSyncStatus('⚠️ Offline mode', 'sync-err');
+        if (state.weeks.length === 0) {
+          state.weeks = [
+            { date:"19 Apr", paidTo:"Peter Ndeti", payments:{"Peter Ndeti":400,"Baba Gathoni":400,"Joshua Wambua":300,"Joakim Kidiwa":400,"Dan Mutiso":400,"Gabriel Mwendwa":400,"Paul Bett":400,"Frank Mchana":400} },
+            { date:"26 Apr", paidTo:"Baba Gathoni", payments:{"Peter Ndeti":400,"Baba Gathoni":400,"Joshua Wambua":300,"Joakim Kidiwa":400,"Dan Mutiso":400,"Gabriel Mwendwa":400,"Paul Bett":400,"Frank Mchana":400} },
+            { date:"3 May", paidTo:"Joshua Wambua", payments:{"Peter Ndeti":300,"Baba Gathoni":300,"Joshua Wambua":300,"Joakim Kidiwa":300,"Dan Mutiso":300,"Gabriel Mwendwa":300,"Paul Bett":300,"Frank Mchana":300} },
+            { date:"10 May", paidTo:"Joakim Kidiwa", payments:{"Peter Ndeti":400,"Baba Gathoni":400,"Joshua Wambua":300,"Joakim Kidiwa":400,"Dan Mutiso":400,"Gabriel Mwendwa":400,"Paul Bett":400,"Frank Mchana":400} },
+            { date:"17 May", paidTo:"Dan Mutiso", payments:{"Peter Ndeti":400,"Baba Gathoni":100,"Joshua Wambua":300,"Joakim Kidiwa":400,"Dan Mutiso":400,"Gabriel Mwendwa":400,"Paul Bett":400,"Frank Mchana":400} },
+            { date:"24 May", paidTo:"Gabriel Mwendwa", payments:{"Peter Ndeti":400,"Baba Gathoni":0,"Joshua Wambua":300,"Joakim Kidiwa":400,"Dan Mutiso":400,"Gabriel Mwendwa":400,"Paul Bett":400,"Frank Mchana":400} },
+            { date:"31 May", paidTo:"Paul Bett", payments:{"Peter Ndeti":0,"Baba Gathoni":0,"Joshua Wambua":0,"Joakim Kidiwa":400,"Dan Mutiso":400,"Gabriel Mwendwa":0,"Paul Bett":400,"Frank Mchana":400} },
+            { date:"7 Jun", paidTo:"Frank Mchana", payments:{"Peter Ndeti":0,"Baba Gathoni":0,"Joshua Wambua":0,"Joakim Kidiwa":0,"Dan Mutiso":0,"Gabriel Mwendwa":0,"Paul Bett":30,"Frank Mchana":400} }
+          ];
+          state.currentWeekIdx = findCurrentWeekIdx();
+        }
+        renderAll();
+        return;
+      }
+      try {
+        const snapshot = await dbRef.once('value');
+        const data = snapshot.val();
+        if (data && data.weeks && data.weeks.length > 0) {
+          state.weeks = data.weeks;
+          if (data.members) state.members = data.members;
+          if (data.payoutOrder) state.payoutOrder = data.payoutOrder;
+          updateSyncStatus('✓ Cloud connected', 'sync-ok');
+        } else {
+          state.weeks = [
+            { date:"19 Apr", paidTo:"Peter Ndeti", payments:{"Peter Ndeti":400,"Baba Gathoni":400,"Joshua Wambua":300,"Joakim Kidiwa":400,"Dan Mutiso":400,"Gabriel Mwendwa":400,"Paul Bett":400,"Frank Mchana":400} },
+            { date:"26 Apr", paidTo:"Baba Gathoni", payments:{"Peter Ndeti":400,"Baba Gathoni":400,"Joshua Wambua":300,"Joakim Kidiwa":400,"Dan Mutiso":400,"Gabriel Mwendwa":400,"Paul Bett":400,"Frank Mchana":400} },
+            { date:"3 May", paidTo:"Joshua Wambua", payments:{"Peter Ndeti":300,"Baba Gathoni":300,"Joshua Wambua":300,"Joakim Kidiwa":300,"Dan Mutiso":300,"Gabriel Mwendwa":300,"Paul Bett":300,"Frank Mchana":300} },
+            { date:"10 May", paidTo:"Joakim Kidiwa", payments:{"Peter Ndeti":400,"Baba Gathoni":400,"Joshua Wambua":300,"Joakim Kidiwa":400,"Dan Mutiso":400,"Gabriel Mwendwa":400,"Paul Bett":400,"Frank Mchana":400} },
+            { date:"17 May", paidTo:"Dan Mutiso", payments:{"Peter Ndeti":400,"Baba Gathoni":100,"Joshua Wambua":300,"Joakim Kidiwa":400,"Dan Mutiso":400,"Gabriel Mwendwa":400,"Paul Bett":400,"Frank Mchana":400} },
+            { date:"24 May", paidTo:"Gabriel Mwendwa", payments:{"Peter Ndeti":400,"Baba Gathoni":0,"Joshua Wambua":300,"Joakim Kidiwa":400,"Dan Mutiso":400,"Gabriel Mwendwa":400,"Paul Bett":400,"Frank Mchana":400} },
+            { date:"31 May", paidTo:"Paul Bett", payments:{"Peter Ndeti":0,"Baba Gathoni":0,"Joshua Wambua":0,"Joakim Kidiwa":400,"Dan Mutiso":400,"Gabriel Mwendwa":0,"Paul Bett":400,"Frank Mchana":400} },
+            { date:"7 Jun", paidTo:"Frank Mchana", payments:{"Peter Ndeti":0,"Baba Gathoni":0,"Joshua Wambua":0,"Joakim Kidiwa":0,"Dan Mutiso":0,"Gabriel Mwendwa":0,"Paul Bett":30,"Frank Mchana":400} }
+          ];
+          await dbRef.set({ weeks: state.weeks, members: state.members, payoutOrder: state.payoutOrder });
+          updateSyncStatus('✓ Cloud connected (new)', 'sync-ok');
+        }
+        state.currentWeekIdx = findCurrentWeekIdx();
+      } catch (err) {
+        console.error("Firebase error:", err);
+        updateSyncStatus('⚠️ Connection failed', 'sync-err');
+        if (state.weeks.length === 0) {
+          state.weeks = [
+            { date:"19 Apr", paidTo:"Peter Ndeti", payments:{"Peter Ndeti":400,"Baba Gathoni":400,"Joshua Wambua":300,"Joakim Kidiwa":400,"Dan Mutiso":400,"Gabriel Mwendwa":400,"Paul Bett":400,"Frank Mchana":400} },
+            { date:"26 Apr", paidTo:"Baba Gathoni", payments:{"Peter Ndeti":400,"Baba Gathoni":400,"Joshua Wambua":300,"Joakim Kidiwa":400,"Dan Mutiso":400,"Gabriel Mwendwa":400,"Paul Bett":400,"Frank Mchana":400} },
+            { date:"3 May", paidTo:"Joshua Wambua", payments:{"Peter Ndeti":300,"Baba Gathoni":300,"Joshua Wambua":300,"Joakim Kidiwa":300,"Dan Mutiso":300,"Gabriel Mwendwa":300,"Paul Bett":300,"Frank Mchana":300} },
+            { date:"10 May", paidTo:"Joakim Kidiwa", payments:{"Peter Ndeti":400,"Baba Gathoni":400,"Joshua Wambua":300,"Joakim Kidiwa":400,"Dan Mutiso":400,"Gabriel Mwendwa":400,"Paul Bett":400,"Frank Mchana":400} },
+            { date:"17 May", paidTo:"Dan Mutiso", payments:{"Peter Ndeti":400,"Baba Gathoni":100,"Joshua Wambua":300,"Joakim Kidiwa":400,"Dan Mutiso":400,"Gabriel Mwendwa":400,"Paul Bett":400,"Frank Mchana":400} },
+            { date:"24 May", paidTo:"Gabriel Mwendwa", payments:{"Peter Ndeti":400,"Baba Gathoni":0,"Joshua Wambua":300,"Joakim Kidiwa":400,"Dan Mutiso":400,"Gabriel Mwendwa":400,"Paul Bett":400,"Frank Mchana":400} },
+            { date:"31 May", paidTo:"Paul Bett", payments:{"Peter Ndeti":0,"Baba Gathoni":0,"Joshua Wambua":0,"Joakim Kidiwa":400,"Dan Mutiso":400,"Gabriel Mwendwa":0,"Paul Bett":400,"Frank Mchana":400} },
+            { date:"7 Jun", paidTo:"Frank Mchana", payments:{"Peter Ndeti":0,"Baba Gathoni":0,"Joshua Wambua":0,"Joakim Kidiwa":0,"Dan Mutiso":0,"Gabriel Mwendwa":0,"Paul Bett":30,"Frank Mchana":400} }
+          ];
+          state.currentWeekIdx = findCurrentWeekIdx();
+        }
+      } finally {
+        renderAll();
+      }
+    }
+
+    async function saveToFirebaseSilent() {
+      if (!dbRef) return;
+      try {
+        await dbRef.set({ weeks: state.weeks, members: state.members, payoutOrder: state.payoutOrder });
+        updateSyncStatus('✓ Saved', 'sync-ok');
+        setTimeout(() => updateSyncStatus('✓ Cloud connected', 'sync-ok'), 1200);
+      } catch (err) {
+        console.error("Save error:", err);
+        updateSyncStatus('⚠️ Save failed', 'sync-err');
+      }
+    }
+
+    async function saveToFirebase() {
+      await saveToFirebaseSilent();
+      showToast("Data saved to cloud");
+    }
+
+    function retryConnection() {
+      updateSyncStatus('⟳ Retrying…', 'sync-loading');
+      loadFromFirebase();
+    }
+
+    function exportJSON() {
+      const data = { weeks: state.weeks, members: state.members, payoutOrder: state.payoutOrder, exportedAt: new Date().toISOString() };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Chama_Backup_${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("Backup downloaded");
+    }
+
+    function copyMsg(id) {
+      navigator.clipboard.writeText(document.getElementById(id).innerText).then(() => showToast("Message copied!"));
+    }
+
+    function toggleTheme() {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+      localStorage.setItem('theme', isDark ? 'light' : 'dark');
+    }
+
+    // ==================== TAB SWITCHING ====================
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        const tabId = tab.dataset.tab;
+        document.getElementById(`tab-${tabId}`).classList.add('active');
+        state.currentTab = tabId;
+        renderCurrentTab();
+      });
+    });
+
+    // ==================== INIT ====================
+    window.onload = async () => {
+      if (localStorage.getItem('theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      // Sign in anonymously so Firebase security rules (auth != null) are satisfied
+      try {
+        await firebase.auth().signInAnonymously();
+      } catch (e) {
+        console.warn('Anonymous auth failed, proceeding anyway:', e);
+      }
+      loadFromFirebase();
+    };
+
+    window.showMemberHistory = showMemberHistory;
+    window.retryConnection = retryConnection;
+    window.doMarkAllPaid = doMarkAllPaid;
+    window.confirmDeleteWeek = confirmDeleteWeek;
+    window.deleteCurrentWeek = deleteCurrentWeek;
+    window.confirmDeleteMember = confirmDeleteMember;
+    window.deleteMember = deleteMember;
+  </script>
+</body>
+</html>
